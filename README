@@ -1,0 +1,5 @@
+This is a package containing personal crawlers under MIT License.
+In this package you will find crawlers supporting partial APIs from Twitter, Foursquare, Google, Bing, Twitpic, yFrog, pixli, TwitGoo, TweetPhoto (Plixi) for the purpose of information retrieval.  It is easy to add new APIs by just adding new functions for retrieving from the sources.
+The provided API functions should be like f(para) where para is a list of parameters that the crawler will handout in threading. The returns of the function should be in accordance with the registered writer which could also be customized by extending the Writer class.
+Be careful, this package may change greatly in the future, please don't upgrade to the new version unless you are aware of the changes.
+This package require the threadpool module from Christopher Arndt (http://chrisarndt.de/projects/threadpool/) with many thanks. 
