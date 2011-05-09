@@ -37,13 +37,15 @@ def websearch(**kargs):
             sresults.extend(jresp['responseData']['results'])
             if len(jresp['responseData']['cursor'])==0:
                 break
-            elif jresp['responseData']['cursor']['pages'][-1]['start'] < kargs['start']:
+            elif jresp['responseData']['cursor']['pages'][-1]['start'] \
+                    < kargs['start']:
                 break
-            if kargs['start'] > 50: break
-        except APIError as err:
+            if kargs['start'] > 50:
+                break
+        except APIError:
             print 'Deception Failed!'
             time.sleep(3600)
-        except StandardError as err:
+        except StandardError:
             traceback.print_exc(file=sys.stdout)
             time.sleep(3600)
     return sresults

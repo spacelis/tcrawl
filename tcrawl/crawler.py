@@ -5,6 +5,8 @@ Description:
     Using threadpool to speed up crawling.
     Including crawling by user, crawling by POI.
 History:
+    0.2.5 ! change web page retrieving method to api_call2
+    0.2.4 + web page retrieving method
     0.2.3 + google search API and Bing search API
     0.2.2 ! change search API to wrapped_search() to make sure
             the format
@@ -20,13 +22,14 @@ History:
     0.1.1 + support max_id to avoid duplicated retrieval
     0.1.0 The first version.
 """
-__version__ = '0.2.3'
+__version__ = '0.2.5'
 __author__ = 'SpaceLis'
 
 import os, sys, time, json, threading, logging, signal
-import gzip, urllib
-from tcrawl import threadpool
-from tcrawl import api, twitter_api, foursq_api, pic_service_api, google_api, bing_api
+import gzip
+import threadpool
+from tcrawl import api, twitter_api, foursq_api
+from tcrawl import pic_service_api, google_api, bing_api
 
 #pylint: disable-msg=E1103
 
@@ -169,7 +172,8 @@ class JsonList2FileWriter(Writer):
     def write(self, kargs):
         self.lock.acquire()
         for item in kargs['list']:
-            print >> self.fout, json.dumps(item).encode('utf-8', errors='ignore')
+            print >> self.fout, json.dumps(item).encode('utf-8',
+                    errors='ignore')
         self.lock.release()
 
     def flush(self):
@@ -354,7 +358,8 @@ def retrieve_bing_search(paras):
     """Retrieve search results from Google
     """
     logging.info('keyword={0}'.format(paras[1]))
-    sres = bing_api.searchrequest(Query = paras[1], Sources='Web', Version='2.0',
+    sres = bing_api.searchrequest(Query = paras[1], Sources='Web',
+            Version='2.0',
             AppId='ED4FF446CC9C1BA6BD0F1B013DE8B3A040F6D89E')
     if len(sres) > 0:
         return {'list': ({'q': paras[0], \
@@ -365,17 +370,16 @@ def retrieve_web_page(paras):
     """Retrieve web pages from url
     """
     logging.info('URL: {0}'.format(paras[1]))
-    try:
-        web = urllib.urlopen(paras[1]).read()
-    except:
-        print 'err', paras[1]
+    web = api.api_call2(*api.urlsplit(paras[1])).read(). \
+            decode('utf-8', errors='ignore')
+    if len(web) == 0:
         return {'list': list(),}
-    return {'list': ({'q': paras[0], \
+    return {'list': ({'place_id': paras[0], \
             'web': web},)}
 
 
-
-SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic, \
+# a list of usable picture service support by this crawling module
+_SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic, \
                     'yfrog.com':pic_service_api.get_yfrog_pic, \
                     'tweetphoto.com': pic_service_api.get_tweetphoto_pic, \
                     'plixi.com': pic_service_api.get_tweetphoto_pic}
@@ -385,13 +389,13 @@ def retrieve_pic(paras):
     """
     logging.info('Picture from {0}'.format(paras[0]))
     urlpart = paras[0].split('/')
-    api_method = SERVICEPROVIDERS[urlpart[2]]
+    api_method = _SERVICEPROVIDERS[urlpart[2]]
     pic = api_method(url=paras[0])
     return {'pic': pic, 'name': paras[1]}
 
 #---------------------------------------------------------- Main Function
 def crawl(crawl_type, para_file):
-    """Main function
+    """Main Crawling function
     """
 
     crl = Crawler()
@@ -399,40 +403,33 @@ def crawl(crawl_type, para_file):
     # Set a Writer for the crawler
     if crawl_type != 'picture':
         crl.set_writer(JsonList2FileWriter(\
-                gen_filename('data', crawl_type, 'ljson.gz'), True))
+                gen_filename('data', crawl_type, 'ljson'), False))
     else:
         crl.set_writer(PicFileWriter('data/pic'))
 
-
     # Set a method for the crawler
-    if crawl_type == 'tweet_u':
-        crl.set_method(by_user)
-    elif crawl_type == 'tweet_p':
-        crl.set_method(by_pid)
-    elif crawl_type == 'tweet':
-        crl.set_method(retrieve_tweet)
-    elif crawl_type == 'place':
-        crl.set_method(retrieve_place)
-    elif crawl_type == 'tweet_g':
-        crl.set_method(by_geocode)
-    elif crawl_type == 'place_4sq':
-        crl.set_method(retrieve_place4sq)
-    elif crawl_type == 'picture':
-        crl.set_method(retrieve_pic)
-    elif crawl_type == 'followers':
-        crl.set_method(retrieve_followers_friends)
-    elif crawl_type == 'websearch_g':
-        crl.set_method(retrieve_google_search)
-    elif crawl_type == 'websearch_b':
-        crl.set_method(retrieve_bing_search)
-    elif crawl_type == 'web':
-        crl.set_method(retrieve_web_page)
+    method = {'tweet_u': by_user,
+            'tweet_p': by_pid,
+            'tweet': retrieve_tweet,
+            'place': retrieve_place,
+            'tweet_g': by_geocode,
+            'place_4sq': retrieve_place4sq,
+            'picture': retrieve_pic,
+            'followers': retrieve_followers_friends,
+            'websearch_g': retrieve_google_search,
+            'websearch_b': retrieve_bing_search,
+            'web': retrieve_web_page,
+        }
+    if crawl_type in method:
+        crl.set_method(method[crawl_type])
     else:
         print 'Wrong parameters!'
         return
 
+    # register Ctrl-C singal for interrupting
     signal.signal(signal.SIGINT, crl.stop)
 
+    # prepare for logging
     flog = gen_filename('log', crawl_type,'log')
     logging.basicConfig( \
         filename= flog, \
@@ -446,6 +443,7 @@ def crawl(crawl_type, para_file):
     logging.info('output:{0}'.format(crl.get_writer().dest()))
 
 
+    # start crawling
     crl.crawl(para_file)
 
 

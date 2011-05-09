@@ -83,7 +83,6 @@ def rest(api_path, **kargs):
             else: raise twe
 
 def wrapped_search(**karg):
-    #FIXME
     """use REST API to reform the result tweets from search API
     """
     statuses_sr = search(**karg)
@@ -152,9 +151,8 @@ def stream_filter(**kargs):
     """
     writer = kargs['writer']
     del kargs['writer']
-    url = buildpath( \
-        'http://socialmining:tudelft@stream.twitter.com/1/statuses/filter.json', \
-        kargs)
+    url = buildpath('http://socialmining:tudelft@'
+            'stream.twitter.com/1/statuses/filter.json', kargs)
     stream_call(url, writer.write)
     return None
 
@@ -166,7 +164,7 @@ def test():
     #print place_id(place_id='247f43d441defc03')
     #while True:
     #iterpage(user_timeline, user_id=1317)
-    print followers_ids(user_id=171624164)
+    #print followers_ids(user_id=171624164)
 
 
 

@@ -14,42 +14,38 @@ from tcrawl.api import api_call, urlsplit
 
 def get_twit_pic(**kargs):
     """Retrieve the picture from TwitPic"""
-    host, path = urlsplit(kargs['url'])
-    twitpage = api_call(host, path, True).read()
+    twitpage = api_call(*urlsplit(kargs['url'])).read()
     anchor = '<img class="photo" id="photo-display" src="'
     start = twitpage.index(anchor) + len(anchor)
     end = twitpage.index('"', start)
     imgurl = twitpage[start:end]
-    host, path = urlsplit(imgurl)
-    return api_call(host, path, True).read()
+    return api_call(*urlsplit(imgurl)).read()
 
 
 def get_yfrog_pic(**kargs):
     """Retrieve the picture from YFrog
     """
-    host, path = urlsplit(kargs['url'])
-    pic = api_call(host, path +':iphone', True).read()
+    host, path, secure = urlsplit(kargs['url'])
+    pic = api_call(host, path +':iphone', secure).read()
     return pic
 
 
 def get_twitgoo_pic(**kargs):
     """Retrieve the picture from TwitGoo
     """
-    host, path = urlsplit(kargs['url'])
-    pic = api_call(host, path +'/img', False).read()
+    host, path, secure = urlsplit(kargs['url'])
+    pic = api_call(host, path +'/img', secure).read()
     return pic
 
 def get_tweetphoto_pic(**kargs):
     """Retrieve the picture from TweetPhoto or Plixi.com
     """
-    host, path = urlsplit(kargs['url'])
-    pic_page = api_call(host,  path , False).read()
+    pic_page = api_call(*urlsplit(kargs['url'])).read()
     anchor = '" alt="" id="photo"'
     end  = pic_page.find(anchor)
     start = pic_page.rfind('"', 0, end) + 1
     imgurl = pic_page[start:end]
-    host, path = urlsplit(imgurl)
-    return api_call(host, path, False).read()
+    return api_call(*urlsplit(imgurl)).read()
 
 
 def test():
