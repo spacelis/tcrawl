@@ -359,7 +359,7 @@ def retrieve_bing_search(paras):
     """
     logging.info('keyword={0}'.format(paras[1]))
     sres = bing_api.searchrequest(Query = paras[1], Sources='Web',
-            Version='2.0',
+            Version='2.0', Market='en-US',
             AppId='ED4FF446CC9C1BA6BD0F1B013DE8B3A040F6D89E')
     if len(sres) > 0:
         return {'list': ({'q': paras[0], \
@@ -403,7 +403,7 @@ def crawl(crawl_type, para_file):
     # Set a Writer for the crawler
     if crawl_type != 'picture':
         crl.set_writer(JsonList2FileWriter(\
-                gen_filename('data', crawl_type, 'ljson'), False))
+                gen_filename('data', crawl_type, 'ljson.gz'), True))
     else:
         crl.set_writer(PicFileWriter('data/pic'))
 
