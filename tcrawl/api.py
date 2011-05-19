@@ -100,7 +100,7 @@ def api_call(host, path, secure):
 
 def api_call2(host, path, secure):
     """Retrieve data from server"""
-    retry_left = 3
+    retry_left = 10
     while retry_left > 0:
         if secure:
             url = 'https://'
@@ -109,7 +109,7 @@ def api_call2(host, path, secure):
 
         url += host + '/' + path
         try:
-            resp = _URL_OPERNER.open(url)
+            resp = _URL_OPERNER.open(url, "", 100)
         except Exception:
             raise APIError(0, 'URL is invalid', None)
         return resp
