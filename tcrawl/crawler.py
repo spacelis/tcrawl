@@ -159,6 +159,38 @@ class Writer(object):
         """
         raise NotImplementedError
 
+class LineWriter(Writer):
+    """Write the result list into a file"""
+    def __init__(self, dst, is_compressed):
+        super(LineWriter, self).__init__()
+        self.dst = dst
+        if is_compressed:
+            self.fout = gzip.open(dst, 'w')
+        else:
+            self.fout = open(dst, 'w')
+    def write(self, line):
+        self.lock.acquire()
+        print >> self.fout, line.encode('utf-8',
+                errors='ignore')
+        self.lock.release()
+
+    def flush(self):
+        """Flush the writer
+        """
+        self.lock.acquire()
+        self.fout.flush()
+        self.lock.release()
+
+    def close(self):
+        """Close the writer
+        """
+        self.lock.acquire()
+        self.fout.close()
+        self.lock.release()
+
+    def dest(self):
+        """return the destination"""
+        return self.dst
 
 class JsonList2FileWriter(Writer):
     """Write the result list into a file"""
@@ -377,6 +409,15 @@ def retrieve_web_page(paras):
     return {'list': ({'place_id': paras[0], \
             'web': web},)}
 
+def retrieve_url(paras):
+    """Retrieve web pages from url
+    """
+    logging.info('URL: {0}'.format(paras[0]))
+    web = api.api_call2(*api.urlsplit(paras[0])).read(). \
+            decode('utf-8', errors='ignore')
+    web = web.replace('\n', ' ')
+    web = web.replace('\r', ' ')
+    return ' '.join([paras[0], web])
 
 # a list of usable picture service support by this crawling module
 _SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic, \
@@ -401,11 +442,14 @@ def crawl(crawl_type, para_file):
     crl = Crawler()
 
     # Set a Writer for the crawler
-    if crawl_type != 'picture':
-        crl.set_writer(JsonList2FileWriter(\
+    if crawl_type == 'picture':
+        crl.set_writer(PicFileWriter('data/pic'))
+    elif crawl_type == 'url':
+        crl.set_writer(LineWriter(\
                 gen_filename('data', crawl_type, 'ljson.gz'), True))
     else:
-        crl.set_writer(PicFileWriter('data/pic'))
+        crl.set_writer(JsonList2FileWriter(\
+                gen_filename('data', crawl_type, 'ljson.gz'), True))
 
     # Set a method for the crawler
     method = {'tweet_u': by_user,
@@ -419,6 +463,7 @@ def crawl(crawl_type, para_file):
             'websearch_g': retrieve_google_search,
             'websearch_b': retrieve_bing_search,
             'web': retrieve_web_page,
+            'url': retrieve_url,
         }
     if crawl_type in method:
         crl.set_method(method[crawl_type])
