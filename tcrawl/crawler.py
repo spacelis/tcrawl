@@ -48,6 +48,9 @@ def gen_filename(path, name, ext):
 class Crawler(object):
     """The base class for crawlers
     """
+    INTMSGB = 'Interrupted before %(filename)s[%(lineno)s]: %(paras)s'
+    INTMSGA = 'Interrupted after %(filename)s[%(lineno)s]: %(paras)s'
+
     #pylint: disable-msg=R0903
     def __init__(self, poolsize = 20, bufsize=1000):
         """Default contructor
@@ -76,51 +79,51 @@ class Crawler(object):
         """
         if not self.writer and not self.method:
             return
-        fpara = open(para_file, 'r')
+        fpara = FileInput(para_files, mode='r')
 
         pool = threadpool.ThreadPool(self.poolsize)
-        parlst = list()
-        for line in fpara:
+        buf = list()
+        linenum = 0
+        while True:
+            line = fpara.readline().strip()
+            buf.append({'filename':fpara.filename(),
+                        'lineno': fpara.lineno(),
+                        'paras': line})
             if self.stopped:
-                break # Stop current crawling
-            parlst.append(line.strip())
-            if len(parlst) > self.bufsize:
-                requests = threadpool.makeRequests(self.retrieve, parlst)
+                logging.warning(INTMSGB % buf[-1])
+                break
+            if buf > self.bufsize or len(line) == 0:
+                requests = threadpool.makeRequests(self.retrieve, buf)
                 map(pool.putRequest, requests)
                 pool.wait()
                 self.writer.flush()
                 del parlst[:]
-
-        #Flush the last part of lines in parlst
-        if not self.stopped:
-            requests = threadpool.makeRequests(self.retrieve, parlst)
-            map(pool.putRequest, requests)
-            pool.wait()
-            self.writer.flush()
+            if len(line) == 0:
+                break
 
         fpara.close()
         self.writer.close()
         if not self.stopped:
             logging.info('Retrieving finished.')
         else:
-            logging.info('Retrieving interrupted.')
+            logging.warning('Retrieving interrupted.')
         return
 
-    def retrieve(self, para):
+    def retrieve(self, paraitem):
         """Retrieve one piece of data from the entrypoint
         """
         if self.stopped:
-            logging.info('Interrupted before retrieving by ' + str(para))
+            logging.warning(INTMSGA % paraitem)
             return
         paras = para.split('$')
         try:
             rtn = self.method(paras)
             self.writer.write(rtn)
         except api.APIError as err:
-            logging.warning('Unexpected Error {0}: {1}\nParameter: {2}'.\
+            logging.warning('Error {0}: {1}\nParameter: {2}'.\
                     format(err.code, err.msg, paras))
         if self.stopped:
-            logging.info('Interrupted after retrieving by ' + str(para))
+            logging.info(INTMSGA % paraitem)
             return
         return
 
@@ -262,7 +265,7 @@ def retrieve_pic(paras):
     return {'pic': pic, 'name': paras[1]}
 
 #---------------------------------------------------------- Main Function
-def crawl(crawl_type, para_file):
+def crawl(crawl_type, para_files):
     """Main Crawling function
     """
 
@@ -316,8 +319,8 @@ def crawl(crawl_type, para_file):
 
 
     # start crawling
-    crl.crawl(para_file)
+    crl.crawl(para_files)
 
 
 if __name__ == '__main__':
-    crawl(sys.argv[1], sys.argv[2])
+    crawl(sys.argv[1], sys.argv[2:])

@@ -92,7 +92,6 @@ def wrapped_search(**karg):
         statuses.append(get_status(id=sid))
     return statuses
 
-
 def iterpage(twapi, **kargs):
     """Iterating pages"""
     page = 1
@@ -149,6 +148,7 @@ def get_status(**kargs):
 def stream_filter(**kargs):
     """Retrieve streaming data from the streaming API
     """
+    #FIXME not working
     writer = kargs['writer']
     del kargs['writer']
     url = buildpath('http://socialmining:tudelft@'
