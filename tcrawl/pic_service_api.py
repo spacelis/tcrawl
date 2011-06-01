@@ -46,10 +46,10 @@ def get_tweetphoto_pic(**kargs):
     return api_call(*urlsplit(imgurl)).read()
 
 # a list of usable picture service support by this crawling module
-_SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic, \
-                    'yfrog.com':pic_service_api.get_yfrog_pic, \
-                    'tweetphoto.com': pic_service_api.get_tweetphoto_pic, \
-                    'plixi.com': pic_service_api.get_tweetphoto_pic}
+_SERVICEPROVIDERS = {'twitpic.com':get_twit_pic, \
+                    'yfrog.com':get_yfrog_pic, \
+                    'tweetphoto.com': get_tweetphoto_pic, \
+                    'plixi.com': get_tweetphoto_pic}
 def get_pic(**kargs):
     """ Retrieving Pictures from the right site
     """

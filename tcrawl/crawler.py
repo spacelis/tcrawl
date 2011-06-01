@@ -5,6 +5,7 @@ Description:
     Using threadpool to speed up crawling.
     Including crawling by user, crawling by POI.
 History:
+    0.2.6 ! make code more compact
     0.2.5 ! change web page retrieving method to api_call2
     0.2.4 + web page retrieving method
     0.2.3 + google search API and Bing search API
@@ -22,14 +23,16 @@ History:
     0.1.1 + support max_id to avoid duplicated retrieval
     0.1.0 The first version.
 """
-__version__ = '0.2.5'
+__version__ = '0.2.6'
 __author__ = 'SpaceLis'
 
-import os, sys, time, json, threading, logging, signal
-import gzip
+import sys, time, logging, signal
+from fileinput import FileInput
+
 import threadpool
 from tcrawl import api, twitter_api, foursq_api
 from tcrawl import pic_service_api, google_api, bing_api
+from tcrawl.writer import DirectoryWriter, LineWriter, JsonList2FileWriter
 
 #pylint: disable-msg=E1103
 
@@ -52,15 +55,21 @@ class Crawler(object):
     INTMSGA = 'Interrupted after %(filename)s[%(lineno)s]: %(paras)s'
 
     #pylint: disable-msg=R0903
-    def __init__(self, poolsize = 20, bufsize=1000):
+    def __init__(self, **kargs):
         """Default contructor
         """
-        self.name = None
-        self.writer = None
-        self.method = None
-        self.poolsize = poolsize
+        _kargs = {'poolsize': 20,
+                'name': None,
+                'writer': None,
+                'method': None,
+                'bufsize': 1000}
+        _kargs.update(kargs)
+        self.name = _kargs['poolsize']
+        self.writer = _kargs['writer']
+        self.method = _kargs['method']
+        self.poolsize = _kargs['poolsize']
         self.stopped = False
-        self.bufsize = bufsize
+        self.bufsize = _kargs['bufsize']
 
     def set_writer(self, writer):
         """Set a writer for the crawler"""
@@ -74,7 +83,7 @@ class Crawler(object):
         """Set a crawling method for the crawler"""
         self.method = method
 
-    def crawl(self, para_file):
+    def crawl(self, para_files):
         """ using thread pool to speed up crawling.
         """
         if not self.writer and not self.method:
@@ -83,21 +92,20 @@ class Crawler(object):
 
         pool = threadpool.ThreadPool(self.poolsize)
         buf = list()
-        linenum = 0
         while True:
             line = fpara.readline().strip()
             buf.append({'filename':fpara.filename(),
                         'lineno': fpara.lineno(),
-                        'paras': line})
+                        'para': line})
             if self.stopped:
-                logging.warning(INTMSGB % buf[-1])
+                logging.warning(Crawler.INTMSGB, buf[-1])
                 break
             if buf > self.bufsize or len(line) == 0:
                 requests = threadpool.makeRequests(self.retrieve, buf)
                 map(pool.putRequest, requests)
                 pool.wait()
                 self.writer.flush()
-                del parlst[:]
+                del buf[:]
             if len(line) == 0:
                 break
 
@@ -113,9 +121,9 @@ class Crawler(object):
         """Retrieve one piece of data from the entrypoint
         """
         if self.stopped:
-            logging.warning(INTMSGA % paraitem)
+            logging.warning(Crawler.INTMSGB, paraitem)
             return
-        paras = para.split('$')
+        paras = paraitem['para'].split('$')
         try:
             rtn = self.method(paras)
             self.writer.write(rtn)
@@ -123,7 +131,7 @@ class Crawler(object):
             logging.warning('Error {0}: {1}\nParameter: {2}'.\
                     format(err.code, err.msg, paras))
         if self.stopped:
-            logging.info(INTMSGA % paraitem)
+            logging.info(Crawler.INTMSGA, paraitem)
             return
         return
 
@@ -261,7 +269,7 @@ def retrieve_pic(paras):
     """Retrieve picture from online picture service
     """
     logging.info('Picture from {0}'.format(paras[0]))
-    pic = get_pic(url=paras[0])
+    pic = pic_service_api.get_pic(url=paras[0])
     return {'pic': pic, 'name': paras[1]}
 
 #---------------------------------------------------------- Main Function
@@ -269,17 +277,19 @@ def crawl(crawl_type, para_files):
     """Main Crawling function
     """
 
-    crl = Crawler()
+    crl = Crawler(poolsize=10, bufsize=15)
 
     # Set a Writer for the crawler
     if crawl_type == 'picture':
-        crl.set_writer(PicFileWriter('data/pic'))
+        crl.set_writer(DirectoryWriter('data/pic'))
     elif crawl_type == 'url':
         crl.set_writer(LineWriter(\
-                gen_filename('data', crawl_type, 'ljson.gz'), True))
+                gen_filename('data', crawl_type, 'ljson.gz'),
+                is_compressed=True))
     else:
         crl.set_writer(JsonList2FileWriter(\
-                gen_filename('data', crawl_type, 'ljson.gz'), True))
+                gen_filename('data', crawl_type, 'ljson.gz'),
+                is_compressed=True))
 
     # Set a method for the crawler
     method = {'tweet_u': by_user,

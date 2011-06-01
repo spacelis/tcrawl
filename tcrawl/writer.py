@@ -9,7 +9,7 @@ History:
 __version__ = '0.1.0'
 __author__ = 'SpaceLis'
 
-import threading, re, os
+import threading, re, os, gzip, json
 
 _MULTISLASH = re.compile(r'/+')
 
@@ -18,13 +18,13 @@ def newfilename(filename, ext="", zeropads=2):
         @arg filename the expected filename in str()
         @return the new filename that is not taken
     """
-    newname = filename
+    newname = '%s.%s' % filename, ext
     if os.path.exists(newname):
         i = 1
-        newname = filename + (('_%0'+str(zeropads)+'d') % i)
+        newname = filename + (('_%0' + str(zeropads)+'d.' + ext) % i)
         while os.path.exists(newname):
             i += 1
-            newname = filename + (('_%0'+str(zeropads)+'d') % i)
+            newname = filename + (('_%0' + str(zeropads)+'d' + ext) % i)
     return newname
 
 def concatpath(*paths):
@@ -41,9 +41,10 @@ def concatpath(*paths):
 class FileWriter(object):
     """Storing retrieving results"""
     def __init__(self):
-        super(Writer, self).__init__()
+        super(FileWriter, self).__init__()
         self.lock = threading.RLock()
-        self.out = None
+        self.fout = None
+        self.dst = None
 
     def write(self, kargs):
         """Write the content in to a file
@@ -99,6 +100,7 @@ class DirectoryWriter(object):
     """Write the result list into a directory as files"""
     def __init__(self, dst, **karg):
         super(DirectoryWriter, self).__init__()
+        self.lock = threading.RLock()
         self.dst = dst
 
     def write(self, kargs):
@@ -119,12 +121,12 @@ def test():
     """test
     """
     print concatpath('/asdfio/asdi/', '\\iadfne/fidosa/')
-    with open(newfilename('haha'), 'w') as f:
-        print >>f, 'haha'
-    with open(newfilename('haha'), 'w') as f:
-        print >>f, 'haha'
-    with open(newfilename('haha'), 'w') as f:
-        print >>f, 'haha'
+    with open(newfilename('haha'), 'w') as fout:
+        print >> fout, 'haha'
+    with open(newfilename('haha'), 'w') as fout:
+        print >> fout, 'haha'
+    with open(newfilename('haha'), 'w') as fout:
+        print >> fout, 'haha'
 
 
 
