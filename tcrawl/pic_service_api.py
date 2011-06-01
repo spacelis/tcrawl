@@ -21,14 +21,12 @@ def get_twit_pic(**kargs):
     imgurl = twitpage[start:end]
     return api_call(*urlsplit(imgurl)).read()
 
-
 def get_yfrog_pic(**kargs):
     """Retrieve the picture from YFrog
     """
     host, path, secure = urlsplit(kargs['url'])
     pic = api_call(host, path +':iphone', secure).read()
     return pic
-
 
 def get_twitgoo_pic(**kargs):
     """Retrieve the picture from TwitGoo
@@ -47,6 +45,17 @@ def get_tweetphoto_pic(**kargs):
     imgurl = pic_page[start:end]
     return api_call(*urlsplit(imgurl)).read()
 
+# a list of usable picture service support by this crawling module
+_SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic, \
+                    'yfrog.com':pic_service_api.get_yfrog_pic, \
+                    'tweetphoto.com': pic_service_api.get_tweetphoto_pic, \
+                    'plixi.com': pic_service_api.get_tweetphoto_pic}
+def get_pic(**kargs):
+    """ Retrieving Pictures from the right site
+    """
+    urlpart = kargs['url'].split('/')
+    pic_api = _SERVICEPROVIDERS[urlpart[2]]
+    return pic_api(**kargs)
 
 def test():
     """A test

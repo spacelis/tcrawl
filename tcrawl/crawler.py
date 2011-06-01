@@ -44,13 +44,12 @@ def gen_filename(path, name, ext):
             time.strftime('%d_%m_%Y-%H_%M_%S'), \
             ext)
 
-
 #---------------------------------------------------------- Main Classes
 class Crawler(object):
     """The base class for crawlers
     """
     #pylint: disable-msg=R0903
-    def __init__(self, poolsize = 20):
+    def __init__(self, poolsize = 20, bufsize=1000):
         """Default contructor
         """
         self.name = None
@@ -58,6 +57,7 @@ class Crawler(object):
         self.method = None
         self.poolsize = poolsize
         self.stopped = False
+        self.bufsize = bufsize
 
     def set_writer(self, writer):
         """Set a writer for the crawler"""
@@ -84,7 +84,7 @@ class Crawler(object):
             if self.stopped:
                 break # Stop current crawling
             parlst.append(line.strip())
-            if len(parlst) > 10:
+            if len(parlst) > self.bufsize:
                 requests = threadpool.makeRequests(self.retrieve, parlst)
                 map(pool.putRequest, requests)
                 pool.wait()
@@ -132,171 +132,6 @@ class Crawler(object):
             self.stopped = True
             logging.info('Ctrl-C issued')
             self.writer.lock.release()
-
-class Writer(object):
-    """Storing retrieving results"""
-    def __init__(self):
-        super(Writer, self).__init__()
-        self.lock = threading.RLock()
-
-    def write(self, kargs):
-        """Write the content in to a file
-        """
-        raise NotImplementedError
-
-    def flush(self):
-        """Flush the writer
-        """
-        raise NotImplementedError
-
-    def close(self):
-        """Close the writer
-        """
-        raise NotImplementedError
-
-    def dest(self):
-        """Return the destination
-        """
-        raise NotImplementedError
-
-class LineWriter(Writer):
-    """Write the result list into a file"""
-    def __init__(self, dst, is_compressed):
-        super(LineWriter, self).__init__()
-        self.dst = dst
-        if is_compressed:
-            self.fout = gzip.open(dst, 'w')
-        else:
-            self.fout = open(dst, 'w')
-    def write(self, line):
-        self.lock.acquire()
-        print >> self.fout, line.encode('utf-8',
-                errors='ignore')
-        self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        self.lock.acquire()
-        self.fout.flush()
-        self.lock.release()
-
-    def close(self):
-        """Close the writer
-        """
-        self.lock.acquire()
-        self.fout.close()
-        self.lock.release()
-
-    def dest(self):
-        """return the destination"""
-        return self.dst
-
-class JsonList2FileWriter(Writer):
-    """Write the result list into a file"""
-    def __init__(self, dst, is_compressed):
-        super(JsonList2FileWriter, self).__init__()
-        self.dst = dst
-        if is_compressed:
-            self.fout = gzip.open(dst, 'w')
-        else:
-            self.fout = open(dst, 'w')
-    def write(self, kargs):
-        self.lock.acquire()
-        for item in kargs['list']:
-            print >> self.fout, json.dumps(item).encode('utf-8',
-                    errors='ignore')
-        self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        self.lock.acquire()
-        self.fout.flush()
-        self.lock.release()
-
-    def close(self):
-        """Close the writer
-        """
-        self.lock.acquire()
-        self.fout.close()
-        self.lock.release()
-
-    def dest(self):
-        """return the destination"""
-        return self.dst
-
-class PicFileWriter(Writer):
-    """Write the result list into a file"""
-    def __init__(self, dst):
-        self.dst = dst
-        super(PicFileWriter, self).__init__()
-
-    def write(self, kargs):
-        """Write the pic to a file
-        """
-        if os.path.exists(kargs['name']):
-            i = 1
-            while os.path.exists(kargs['name'] + '_{0}'.format(i)):
-                i += 1
-            kargs['name'] += '_{0}'.format(i)
-
-        self.lock.acquire()
-        fout = open(self.dst + ('/' \
-                if self.dst[-1]!='/' or self.dst[-1]!='\\' else '')
-                + kargs['name'], 'wb')
-        print >> fout, kargs['pic']
-        fout.close()
-        self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        pass
-
-    def close(self):
-        """Close the writer
-        """
-        pass
-
-    def dest(self):
-        """Return the destination"""
-        return self.dst
-
-class StreamWriter(Writer):
-    """Write the stream into a file
-    """
-    def __init__(self, dst, is_compressed):
-        super(StreamWriter, self).__init__()
-        self.dst = dst
-        if is_compressed:
-            self.fout = gzip.open(dst, 'w')
-        else:
-            self.fout = open(dst, 'w')
-
-    def write(self, line):
-        self.lock.acquire()
-        print >> self.fout, line
-        self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        self.lock.acquire()
-        self.fout.flush()
-        self.lock.release()
-
-    def close(self):
-        """Close the writer
-        """
-        self.lock.acquire()
-        self.fout.close()
-        self.lock.release()
-
-    def dest(self):
-        """return the destination"""
-        return self.dst
-
 
 #--------------------------------------------------------- Crawling Methods
 def by_user(paras):
@@ -419,19 +254,11 @@ def retrieve_url(paras):
     web = web.replace('\r', ' ')
     return ' '.join([paras[0], web])
 
-# a list of usable picture service support by this crawling module
-_SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic, \
-                    'yfrog.com':pic_service_api.get_yfrog_pic, \
-                    'tweetphoto.com': pic_service_api.get_tweetphoto_pic, \
-                    'plixi.com': pic_service_api.get_tweetphoto_pic}
-
 def retrieve_pic(paras):
     """Retrieve picture from online picture service
     """
     logging.info('Picture from {0}'.format(paras[0]))
-    urlpart = paras[0].split('/')
-    api_method = _SERVICEPROVIDERS[urlpart[2]]
-    pic = api_method(url=paras[0])
+    pic = get_pic(url=paras[0])
     return {'pic': pic, 'name': paras[1]}
 
 #---------------------------------------------------------- Main Function
