@@ -51,8 +51,8 @@ def gen_filename(path, name, ext):
 class Crawler(object):
     """The base class for crawlers
     """
-    INTMSGB = 'Interrupted before %(filename)s[%(lineno)s]: %(paras)s'
-    INTMSGA = 'Interrupted after %(filename)s[%(lineno)s]: %(paras)s'
+    INTMSGB = 'Interrupted before %(filename)s[%(lineno)s]: %(para)s'
+    INTMSGA = 'Interrupted after %(filename)s[%(lineno)s]: %(para)s'
 
     #pylint: disable-msg=R0903
     def __init__(self, **kargs):
@@ -94,19 +94,20 @@ class Crawler(object):
         buf = list()
         while True:
             line = fpara.readline().strip()
-            buf.append({'filename':fpara.filename(),
-                        'lineno': fpara.lineno(),
-                        'para': line})
             if self.stopped:
                 logging.warning(Crawler.INTMSGB, buf[-1])
                 break
-            if buf > self.bufsize or len(line) == 0:
+            if len(buf) > self.bufsize or len(line) == 0:
                 requests = threadpool.makeRequests(self.retrieve, buf)
                 map(pool.putRequest, requests)
                 pool.wait()
                 self.writer.flush()
                 del buf[:]
-            if len(line) == 0:
+            if len(line) > 0:
+                buf.append({'filename':fpara.filename(),
+                            'lineno': fpara.lineno(),
+                            'para': line})
+            else:
                 break
 
         fpara.close()
@@ -277,7 +278,7 @@ def crawl(crawl_type, para_files):
     """Main Crawling function
     """
 
-    crl = Crawler(poolsize=10, bufsize=15)
+    crl = Crawler()
 
     # Set a Writer for the crawler
     if crawl_type == 'picture':
