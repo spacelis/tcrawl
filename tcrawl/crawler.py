@@ -5,6 +5,7 @@ Description:
     Using threadpool to speed up crawling.
     Including crawling by user, crawling by POI.
 History:
+    0.2.7 + a method for crawling tweets from web
     0.2.6 ! make code more compact
     0.2.5 ! change web page retrieving method to api_call2
     0.2.4 + web page retrieving method
@@ -188,6 +189,16 @@ def retrieve_tweet(paras):
     else:
         return {'list': list()}
 
+def retrieve_tweet_html(paras):
+    """Retrieve one tweet from Web interface of Twitter.com
+    """
+    logging.info('TID={0}'.format(paras[0]))
+    status = twitter_api.html_status(id=int(paras[0]), screen_name=paras[1])
+    if status:
+        return {'list': (status,)}
+    else:
+        return {'list': list()}
+
 def retrieve_place(paras):
     """Retrieve one place from API place/{id}
     """
@@ -274,13 +285,29 @@ def retrieve_pic(paras):
     return {'pic': pic, 'name': paras[1]}
 
 #---------------------------------------------------------- Main Function
+_METHODS = {'tweet_u': by_user,
+        'tweet_p': by_pid,
+        'tweet': retrieve_tweet,
+        'htweet': retrieve_tweet_html,
+        'place': retrieve_place,
+        'tweet_g': by_geocode,
+        'place_4sq': retrieve_place4sq,
+        'picture': retrieve_pic,
+        'followers': retrieve_followers_friends,
+        'websearch_g': retrieve_google_search,
+        'websearch_b': retrieve_bing_search,
+        'web': retrieve_web_page,
+        'url': retrieve_url,
+    }
+
+
 def crawl(crawl_type, para_files):
     """Main Crawling function
     """
 
     crl = Crawler()
 
-    # Set a Writer for the crawler
+    # Set a output Writer for the crawler
     if crawl_type == 'picture':
         crl.set_writer(DirectoryWriter('data/pic'))
     elif crawl_type == 'url':
@@ -292,24 +319,11 @@ def crawl(crawl_type, para_files):
                 gen_filename('data', crawl_type, 'ljson.gz'),
                 is_compressed=True))
 
-    # Set a method for the crawler
-    method = {'tweet_u': by_user,
-            'tweet_p': by_pid,
-            'tweet': retrieve_tweet,
-            'place': retrieve_place,
-            'tweet_g': by_geocode,
-            'place_4sq': retrieve_place4sq,
-            'picture': retrieve_pic,
-            'followers': retrieve_followers_friends,
-            'websearch_g': retrieve_google_search,
-            'websearch_b': retrieve_bing_search,
-            'web': retrieve_web_page,
-            'url': retrieve_url,
-        }
-    if crawl_type in method:
-        crl.set_method(method[crawl_type])
+    # Set a crawling method for the crawler
+    if crawl_type in _METHODS:
+        crl.set_method(_METHODS[crawl_type])
     else:
-        print 'Wrong parameters!'
+        printusage()
         return
 
     # register Ctrl-C singal for interrupting
@@ -332,6 +346,17 @@ def crawl(crawl_type, para_files):
     # start crawling
     crl.crawl(para_files)
 
+def printusage():
+    """ print usage info
+    """
+    print 'Wrong parameters!'
+    print 'Usage: crawler.exe <type> file1 [file2 [file3 ...]]'
+    print '<type> = {',
+    for key in _METHODS.iterkeys():
+        print key,
+    print '}'
 
 if __name__ == '__main__':
+    if len(sys.argv) < 3:
+        printusage()
     crawl(sys.argv[1], sys.argv[2:])
