@@ -125,7 +125,7 @@ class Crawler(object):
         if self.stopped:
             logging.warning(Crawler.INTMSGB, paraitem)
             return
-        paras = paraitem['para'].split('$')
+        paras = paraitem['para'].split('\t')
         try:
             rtn = self.method(paras)
             self.writer.write(rtn)
@@ -342,7 +342,6 @@ def crawl(crawl_type, para_files):
     logging.info('input:{0}'.format(sys.argv[2]))
     logging.info('output:{0}'.format(crl.get_writer().dest()))
 
-
     # start crawling
     crl.crawl(para_files)
 
@@ -359,4 +358,5 @@ def printusage():
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         printusage()
-    crawl(sys.argv[1], sys.argv[2:])
+    else:
+        crawl(sys.argv[1], sys.argv[2:])

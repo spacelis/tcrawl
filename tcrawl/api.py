@@ -110,9 +110,10 @@ def api_call2(host, path, secure):
         url += host + '/' + path
         try:
             resp = _URL_OPERNER.open(url, "", 100)
+            return resp
         except Exception:
-            raise APIError(0, 'URL is invalid', None)
-        return resp
+            raise APIError(0, 'INVALID: %s' % url, None)
+        return None
 
 def stream_call(url, writer):
     """cal streaming api

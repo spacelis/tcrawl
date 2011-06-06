@@ -18,6 +18,7 @@ import time
 import json
 
 from tcrawl.api import APIError, buildpath, api_call, stream_call, api_call2
+from text_util import html_filter
 
 SINCEID_PATTERN = re.compile('()&since_id=\\d+|(\?)since_id=\\d+&')
 PAGE = re.compile(r'page')
@@ -162,16 +163,19 @@ def html_status(**kargs):
     uname = kargs['screen_name']
     host = 'twitter.com'
     path = '%s/status/%d' % (uname, tid)
-    html = api_call2(host, path, False).read()
+    html = api_call2(host, path, False).read().decode('utf-8', errors='ignore')
     return htmlstatus2dict(html)
 
 STATUS_DELIM = {
     'text': ['<span class="entry-content">', '</span>'],
     'created_at':['<span class="published timestamp" data="{time:\'', '\'}">'],
     'id': ['id="status_', '"'],
+
     #'user.id': [],
+    'lang': ['http-equiv="Content-Type" />\n<meta content="', '"'],
     'user.screen_name': ['<div class="thumb"><a href="http://twitter.com/', '"'],
     'user.name': ['<div class="full-name">', '</div>'],
+    'place.id':[' data=\'{"place_id":"', '"'],
 }
 
 def htmlstatus2dict(html):
@@ -179,11 +183,15 @@ def htmlstatus2dict(html):
     """
     status = dict()
     for key in STATUS_DELIM.iterkeys():
-        print STATUS_DELIM[key]
         stptn = STATUS_DELIM[key][0]
         endptn = STATUS_DELIM[key][1]
-        start = html.find(stptn) + len(stptn)
+        start = html.find(stptn)
+        if start == -1:
+            continue
+        start += len(stptn)
         end = html.find(endptn, start)
+        if end == -1:
+            continue
         content = html[start:end]
         keypath = key.split('.')
         pnode = status
@@ -191,7 +199,9 @@ def htmlstatus2dict(html):
             if keypath[nidx] not in pnode:
                 pnode[keypath[nidx]] = dict()
             pnode = pnode[keypath[nidx]]
-        pnode[keypath[-1]] = content
+        if keypath[-1] == 'text':
+            content = html_filter(content)
+        pnode[keypath[-1]] = content.encode('utf-8', errors='ignore')
     return status
 
 def test():
