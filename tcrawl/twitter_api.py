@@ -163,6 +163,7 @@ def html_status(**kargs):
     html = api_call2(host, path, False).read().decode('utf-8', errors='ignore')
     status = htmlstatus2dict(html)
     status['id'] = kargs['id']
+    status['screen_name'] = kargs['screen_name']
     return status
 
 STATUS_DELIM_F = {
