@@ -10,8 +10,21 @@ History:
 __version__ = '0.1.0'
 __author__ = 'SpaceLis'
 
-import re, urllib, urllib2, httplib, time
+import re, urllib, urllib2, httplib, time, threading
 import pycurl
+
+_SYNLOCK = threading.RLock()
+_STOPPED = False
+
+def sleep(period):
+    """ Sleep for a period except for interrupting
+        @return True for self wake-up, False for interruption
+    """
+    for i in range(period):
+        sleep(1)
+        if _STOPPED:
+            raise APIError(0, 'Interrupted', None)
+    return True
 
 _CHROME_HEADERS = {
         'Accept': ('text/html,application/xhtml+xml,'

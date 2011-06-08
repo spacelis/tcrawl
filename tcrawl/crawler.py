@@ -35,6 +35,7 @@ from tcrawl import api, twitter_api, foursq_api
 from tcrawl import pic_service_api, google_api, bing_api
 from tcrawl.writer import DirectoryWriter, LineWriter, JsonList2FileWriter
 
+
 #pylint: disable-msg=E1103
 
 #---------------------------------------------------------- Utility Functions
@@ -53,7 +54,6 @@ class Crawler(object):
     """The base class for crawlers
     """
     INTMSGB = 'Interrupted before %(filename)s[%(lineno)s]: %(para)s'
-    INTMSGA = 'Interrupted after %(filename)s[%(lineno)s]: %(para)s'
 
     #pylint: disable-msg=R0903
     def __init__(self, **kargs):
@@ -69,7 +69,6 @@ class Crawler(object):
         self.writer = _kargs['writer']
         self.method = _kargs['method']
         self.poolsize = _kargs['poolsize']
-        self.stopped = False
         self.bufsize = _kargs['bufsize']
 
     def set_writer(self, writer):
@@ -95,10 +94,9 @@ class Crawler(object):
         buf = list()
         while True:
             line = fpara.readline().strip()
-            if self.stopped:
-                logging.warning(Crawler.INTMSGB, buf[-1])
+            if api._STOPPED:
                 break
-            if len(buf) > self.bufsize or len(line) == 0:
+            if len(buf) >= self.bufsize or len(line) == 0:
                 requests = threadpool.makeRequests(self.retrieve, buf)
                 map(pool.putRequest, requests)
                 pool.wait()
@@ -113,7 +111,7 @@ class Crawler(object):
 
         fpara.close()
         self.writer.close()
-        if not self.stopped:
+        if not api._STOPPED:
             logging.info('Retrieving finished.')
         else:
             logging.warning('Retrieving interrupted.')
@@ -122,7 +120,7 @@ class Crawler(object):
     def retrieve(self, paraitem):
         """Retrieve one piece of data from the entrypoint
         """
-        if self.stopped:
+        if api._STOPPED:
             logging.warning(Crawler.INTMSGB, paraitem)
             return
         paras = paraitem['para'].split('\t')
@@ -132,19 +130,10 @@ class Crawler(object):
         except api.APIError as err:
             logging.warning('Error {0}: {1}\nParameter: {2}'.\
                     format(err.code, err.msg, paras))
-        if self.stopped:
-            logging.info(Crawler.INTMSGA, paraitem)
-            return
         return
 
-    def stop(self, signum, dummy):
-        """Handle the signal that stop crawling
-        """
-        if signum == signal.SIGINT:
-            self.writer.lock.acquire()
-            self.stopped = True
-            logging.info('Ctrl-C issued')
-            self.writer.lock.release()
+
+
 
 #--------------------------------------------------------- Crawling Methods
 def by_user(paras):
@@ -301,11 +290,20 @@ _METHODS = {'tweet_u': by_user,
     }
 
 
+def stop(signum, dummy):
+    """Handle the signal that stop crawling
+    """
+    if signum == signal.SIGINT:
+        api._SYNLOCK.acquire()
+        api._STOPPED = True
+        logging.info('Ctrl-C issued')
+        api._SYNLOCK.release()
+
 def crawl(crawl_type, para_files):
     """Main Crawling function
     """
 
-    crl = Crawler()
+    crl = Crawler(poolsize=2, bufsize=10)
 
     # Set a output Writer for the crawler
     if crawl_type == 'picture':
@@ -327,7 +325,7 @@ def crawl(crawl_type, para_files):
         return
 
     # register Ctrl-C singal for interrupting
-    signal.signal(signal.SIGINT, crl.stop)
+    signal.signal(signal.SIGINT, stop)
 
     # prepare for logging
     flog = gen_filename('log', crawl_type,'log')
