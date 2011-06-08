@@ -303,7 +303,7 @@ def crawl(crawl_type, para_files):
     """Main Crawling function
     """
 
-    crl = Crawler(poolsize=2, bufsize=10)
+    crl = Crawler(poolsize=100, bufsize=10000)
 
     # Set a output Writer for the crawler
     if crawl_type == 'picture':

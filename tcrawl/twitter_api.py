@@ -229,7 +229,7 @@ def htmlstatus2dict(html):
         if keypath[-1] == 'text':
             content = html_filter(content)
         pnode[keypath[-1]] = content.encode('utf-8', errors='ignore')
-
+    status['html'] = html.encode('utf-8', errors='ignore')
     return status
 
 def test():
