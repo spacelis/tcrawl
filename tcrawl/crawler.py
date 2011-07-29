@@ -402,11 +402,14 @@ def retrieve_web_page(paras):
     """Retrieve web pages from url
     """
     logging.info('URL: {0}'.format(paras[1]))
-    web = api.api_call2(*api.urlsplit(paras[1])).read(). \
-            decode('utf-8', errors='ignore')
+    opener = api.api_call2(*api.urlsplit(paras[1]))
+    web = opener.read().decode('utf-8', errors='ignore')
+    oriurl = opener.geturl()
     if len(web) == 0:
         return {'list': list(),}
-    return {'list': ({'place_id': paras[0], \
+    return {'list': ({'tid': paras[0],
+            'url': paras[1],
+            'ourl': oriurl,
             'web': web},)}
 
 def retrieve_url(paras):
@@ -420,9 +423,9 @@ def retrieve_url(paras):
     return ' '.join([paras[0], web])
 
 # a list of usable picture service support by this crawling module
-_SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic, \
-                    'yfrog.com':pic_service_api.get_yfrog_pic, \
-                    'tweetphoto.com': pic_service_api.get_tweetphoto_pic, \
+_SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic,
+                    'yfrog.com':pic_service_api.get_yfrog_pic,
+                    'tweetphoto.com': pic_service_api.get_tweetphoto_pic,
                     'plixi.com': pic_service_api.get_tweetphoto_pic}
 
 def retrieve_pic(paras):
