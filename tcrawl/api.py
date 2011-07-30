@@ -10,8 +10,21 @@ History:
 __version__ = '0.1.0'
 __author__ = 'SpaceLis'
 
-import re, urllib, urllib2, httplib, time
+import re, urllib, urllib2, httplib, time, threading
 import pycurl
+
+_SYNLOCK = threading.RLock()
+_STOPPED = False
+
+def sleep(period):
+    """ Sleep for a period except for interrupting
+        @return True for self wake-up, False for interruption
+    """
+    for i in range(period):
+        sleep(1)
+        if _STOPPED:
+            raise APIError(0, 'Interrupted', None)
+    return True
 
 _CHROME_HEADERS = {
         'Accept': ('text/html,application/xhtml+xml,'
@@ -110,9 +123,10 @@ def api_call2(host, path, secure):
         url += host + '/' + path
         try:
             resp = _URL_OPERNER.open(url, "", 100)
+            return resp
         except Exception:
-            raise APIError(0, 'URL is invalid', None)
-        return resp
+            raise APIError(0, 'INVALID: %s' % url, None)
+        return None
 
 def stream_call(url, writer):
     """cal streaming api
