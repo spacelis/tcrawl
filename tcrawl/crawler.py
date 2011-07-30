@@ -409,12 +409,15 @@ def retrieve_web_page(paras):
     """Retrieve web pages from url
     """
     logging.info('URL: {0}'.format(paras[1]))
-    web = api.api_call2(*api.urlsplit(paras[1])).read(). \
-            decode('utf-8', errors='ignore')
-    if len(web) == 0:
+    try:
+        web = api.api_call2(*api.urlsplit(paras[1])).read(). \
+                decode('utf-8', errors='ignore')
+        if len(web) == 0:
+            return {'list': list(),}
+        return {'list': ({'place_id': paras[0], \
+                'web': web},)}
+    except:
         return {'list': list(),}
-    return {'list': ({'place_id': paras[0], \
-            'web': web},)}
 
 def retrieve_url(paras):
     """Retrieve web pages from url
