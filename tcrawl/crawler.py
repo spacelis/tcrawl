@@ -46,7 +46,7 @@ def gen_filename(path, name, ext):
 
 
 #---------------------------------------------------------- Main Classes
-class Crawler(object):
+class (object):
     """The base class for crawlers
     """
     #pylint: disable-msg=R0903
@@ -169,10 +169,14 @@ class LineWriter(Writer):
         else:
             self.fout = open(dst, 'w')
     def write(self, line):
-        self.lock.acquire()
-        print >> self.fout, line.encode('utf-8',
-                errors='ignore')
-        self.lock.release()
+        try:
+            self.lock.acquire()
+            print >> self.fout, unicode(line).encode('utf-8',
+                    errors='ignore')
+        except:
+            print 'Writing to file FAILED.'
+        finally:
+            self.lock.release()
 
     def flush(self):
         """Flush the writer
@@ -203,9 +207,12 @@ class JsonList2FileWriter(Writer):
             self.fout = open(dst, 'w')
     def write(self, kargs):
         self.lock.acquire()
-        for item in kargs['list']:
-            print >> self.fout, json.dumps(item).encode('utf-8',
-                    errors='ignore')
+        try:
+            for item in kargs['list']:
+                print >> self.fout, json.dumps(item).encode('utf-8',
+                        errors='ignore')
+        except:
+            print 'Writing to file FAILED'
         self.lock.release()
 
     def flush(self):
@@ -402,15 +409,15 @@ def retrieve_web_page(paras):
     """Retrieve web pages from url
     """
     logging.info('URL: {0}'.format(paras[1]))
-    opener = api.api_call2(*api.urlsplit(paras[1]))
-    web = opener.read().decode('utf-8', errors='ignore')
-    oriurl = opener.geturl()
-    if len(web) == 0:
+    try:
+        web = api.api_call2(*api.urlsplit(paras[1])).read(). \
+                decode('utf-8', errors='ignore')
+        if len(web) == 0:
+            return {'list': list(),}
+        return {'list': ({'place_id': paras[0], \
+                'web': web},)}
+    except:
         return {'list': list(),}
-    return {'list': ({'tid': paras[0],
-            'url': paras[1],
-            'ourl': oriurl,
-            'web': web},)}
 
 def retrieve_url(paras):
     """Retrieve web pages from url
@@ -442,7 +449,7 @@ def crawl(crawl_type, para_file):
     """Main Crawling function
     """
 
-    crl = Crawler()
+    crl = ()
 
     # Set a Writer for the crawler
     if crawl_type == 'picture':
