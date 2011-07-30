@@ -169,10 +169,14 @@ class LineWriter(Writer):
         else:
             self.fout = open(dst, 'w')
     def write(self, line):
-        self.lock.acquire()
-        print >> self.fout, line.encode('utf-8',
-                errors='ignore')
-        self.lock.release()
+        try:
+            self.lock.acquire()
+            print >> self.fout, unicode(line).encode('utf-8',
+                    errors='ignore')
+        except:
+            print 'Writing to file FAILED.'
+        finally:
+            self.lock.release()
 
     def flush(self):
         """Flush the writer
@@ -203,9 +207,12 @@ class JsonList2FileWriter(Writer):
             self.fout = open(dst, 'w')
     def write(self, kargs):
         self.lock.acquire()
-        for item in kargs['list']:
-            print >> self.fout, json.dumps(item).encode('utf-8',
-                    errors='ignore')
+        try:
+            for item in kargs['list']:
+                print >> self.fout, json.dumps(item).encode('utf-8',
+                        errors='ignore')
+        except:
+            print 'Writing to file FAILED'
         self.lock.release()
 
     def flush(self):
