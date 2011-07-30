@@ -46,7 +46,7 @@ def gen_filename(path, name, ext):
 
 
 #---------------------------------------------------------- Main Classes
-class (object):
+class Crawler(object):
     """The base class for crawlers
     """
     #pylint: disable-msg=R0903
