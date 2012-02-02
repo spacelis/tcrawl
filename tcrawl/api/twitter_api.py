@@ -144,16 +144,6 @@ def get_status(**kargs):
     kargs['include_entities'] = 'true'
     return rest('/1/statuses/show/%(id)s.json', **kargs)
 
-def stream_filter(**kargs):
-    """Retrieve streaming data from the streaming API
-    """
-    #FIXME not working
-    writer = kargs['writer']
-    del kargs['writer']
-    url = buildpath('http://socialmining:tudelft@'
-            'stream.twitter.com/1/statuses/filter.json', kargs)
-    stream_call(url, writer.write)
-    return None
 
 def html_status(**kargs):
     """ Retrieve the tweets specified by id and username by web access"""
