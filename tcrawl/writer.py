@@ -13,6 +13,16 @@ import threading, re, os, gzip, json
 
 _MULTISLASH = re.compile(r'/+')
 
+def new_filename_time(path, name, ext):
+    """
+        format filename with this certain pattern.
+    """
+    return '{0}/{1}-{2}.{3}'.format( \
+            path, \
+            name, \
+            time.strftime('%d_%m_%Y-%H_%M_%S'), \
+            ext)
+
 def newfilename(filename, ext="", zeropads=2):
     """ generate a new filename if the filename if the filename already exists
         @arg filename the expected filename in str()
@@ -116,6 +126,83 @@ class DirectoryWriter(object):
     def dest(self):
         """Return the destination"""
         return self.dst
+
+class ByteFileWriter(FileWriter):
+    """ Write data into a gzipped file
+    """
+    def __init__(self, dst, **kargs):
+        super(ByteFileWriter, self).__init__()
+        if kargs.get('is_compressed'):
+            self.fout = gzip.open(dst, 'w')
+        else:
+            self.fout = open(dst, 'w')
+        if kargs.get('debug'):
+            self.debug = True
+        else:
+            self.debug = False
+
+    def write(self, data):
+        """ Write data
+        """
+        self.lock.acquire()
+        self.fout.write(data)
+        if self.debug:
+            print data,
+        self.lock.release()
+
+class LineBufferedWriter(FileWriter):
+    """ Write into files line by line.
+    """
+    def __init__(self, dst, **kargs):
+        super(LineBufferedWriter, self).__init__()
+        self.buf = ''
+        if kargs.get('is_compressed'):
+            self.fout = gzip.open(dst, 'w')
+        else:
+            self.fout = open(dst, 'w')
+
+    def write(self, data):
+        """ Write data
+        """
+        self.lock.acquire()
+        self.buf += data
+        endl = self.buf.find('\n')
+        while endl > -1:
+            self.fout.write(self.buf[:endl+1])
+            self.buf = self.buf[endl+1:]
+            endl = self.buf.find('\n')
+        self.lock.release()
+
+
+class NullWriter(FileWriter):
+    def __init__(self, **kargs):
+        super(NullWriter, self).__init__()
+
+    def write(self, data):
+        """ Write to NULL
+        """
+        self.lock.acquire()
+        self.lock.release()
+
+    def close(self):
+        print 'File Closed'
+
+class EchoWriter(FileWriter):
+    """ Print the output to stdout
+    """
+    def __init__(self, **karg):
+        super(EchoWriter, self).__init__()
+
+    def write(self, data):
+        """ Write to stdout
+        """
+        self.lock.acquire()
+        print data,
+        self.lock.release()
+
+    def close(self):
+        print 'File Closed'
+
 
 def test():
     """test

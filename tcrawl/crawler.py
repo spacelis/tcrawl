@@ -5,6 +5,7 @@ Description:
     Using threadpool to speed up crawling.
     Including crawling by user, crawling by POI.
 History:
+    0.2.6 ! rearrange the layout of the code
     0.2.5 ! change web page retrieving method to api_call2
     0.2.4 + web page retrieving method
     0.2.3 + google search API and Bing search API
@@ -22,28 +23,21 @@ History:
     0.1.1 + support max_id to avoid duplicated retrieval
     0.1.0 The first version.
 """
-__version__ = '0.2.5'
+__version__ = '0.2.6'
 __author__ = 'SpaceLis'
 
-import os, sys, time, json, threading, logging, signal
-import gzip
+
+import sys
+import logging
+import signal
+
+
 import threadpool
-from tcrawl import api, twitter_api, foursq_api
-from tcrawl import pic_service_api, google_api, bing_api
+import binding
+import writer
+from tcrawl.api import api
 
 #pylint: disable-msg=E1103
-
-#---------------------------------------------------------- Utility Functions
-def gen_filename(path, name, ext):
-    """
-        format filename with this certain pattern.
-    """
-    return '{0}/{1}-{2}.{3}'.format( \
-            path, \
-            name, \
-            time.strftime('%d_%m_%Y-%H_%M_%S'), \
-            ext)
-
 
 #---------------------------------------------------------- Main Classes
 class Crawler(object):
@@ -59,9 +53,9 @@ class Crawler(object):
         self.poolsize = poolsize
         self.stopped = False
 
-    def set_writer(self, writer):
+    def set_writer(self, _writer):
         """Set a writer for the crawler"""
-        self.writer = writer
+        self.writer = _writer
 
     def get_writer(self):
         """Set a writer for the crawler"""
@@ -133,347 +127,36 @@ class Crawler(object):
             logging.info('Ctrl-C issued')
             self.writer.lock.release()
 
-class Writer(object):
-    """Storing retrieving results"""
-    def __init__(self):
-        super(Writer, self).__init__()
-        self.lock = threading.RLock()
-
-    def write(self, kargs):
-        """Write the content in to a file
-        """
-        raise NotImplementedError
-
-    def flush(self):
-        """Flush the writer
-        """
-        raise NotImplementedError
-
-    def close(self):
-        """Close the writer
-        """
-        raise NotImplementedError
-
-    def dest(self):
-        """Return the destination
-        """
-        raise NotImplementedError
-
-class LineWriter(Writer):
-    """Write the result list into a file"""
-    def __init__(self, dst, is_compressed):
-        super(LineWriter, self).__init__()
-        self.dst = dst
-        if is_compressed:
-            self.fout = gzip.open(dst, 'w')
-        else:
-            self.fout = open(dst, 'w')
-    def write(self, line):
-        try:
-            self.lock.acquire()
-            print >> self.fout, unicode(line).encode('utf-8',
-                    errors='ignore')
-        except:
-            print 'Writing to file FAILED.'
-        finally:
-            self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        self.lock.acquire()
-        self.fout.flush()
-        self.lock.release()
-
-    def close(self):
-        """Close the writer
-        """
-        self.lock.acquire()
-        self.fout.close()
-        self.lock.release()
-
-    def dest(self):
-        """return the destination"""
-        return self.dst
-
-class JsonList2FileWriter(Writer):
-    """Write the result list into a file"""
-    def __init__(self, dst, is_compressed):
-        super(JsonList2FileWriter, self).__init__()
-        self.dst = dst
-        if is_compressed:
-            self.fout = gzip.open(dst, 'w')
-        else:
-            self.fout = open(dst, 'w')
-    def write(self, kargs):
-        self.lock.acquire()
-        try:
-            for item in kargs['list']:
-                print >> self.fout, json.dumps(item).encode('utf-8',
-                        errors='ignore')
-        except:
-            print 'Writing to file FAILED'
-        self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        self.lock.acquire()
-        self.fout.flush()
-        self.lock.release()
-
-    def close(self):
-        """Close the writer
-        """
-        self.lock.acquire()
-        self.fout.close()
-        self.lock.release()
-
-    def dest(self):
-        """return the destination"""
-        return self.dst
-
-class PicFileWriter(Writer):
-    """Write the result list into a file"""
-    def __init__(self, dst):
-        self.dst = dst
-        super(PicFileWriter, self).__init__()
-
-    def write(self, kargs):
-        """Write the pic to a file
-        """
-        if os.path.exists(kargs['name']):
-            i = 1
-            while os.path.exists(kargs['name'] + '_{0}'.format(i)):
-                i += 1
-            kargs['name'] += '_{0}'.format(i)
-
-        self.lock.acquire()
-        fout = open(self.dst + ('/' \
-                if self.dst[-1]!='/' or self.dst[-1]!='\\' else '')
-                + kargs['name'], 'wb')
-        print >> fout, kargs['pic']
-        fout.close()
-        self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        pass
-
-    def close(self):
-        """Close the writer
-        """
-        pass
-
-    def dest(self):
-        """Return the destination"""
-        return self.dst
-
-class StreamWriter(Writer):
-    """Write the stream into a file
-    """
-    def __init__(self, dst, is_compressed):
-        super(StreamWriter, self).__init__()
-        self.dst = dst
-        if is_compressed:
-            self.fout = gzip.open(dst, 'w')
-        else:
-            self.fout = open(dst, 'w')
-
-    def write(self, line):
-        self.lock.acquire()
-        print >> self.fout, line
-        self.lock.release()
-
-    def flush(self):
-        """Flush the writer
-        """
-        self.lock.acquire()
-        self.fout.flush()
-        self.lock.release()
-
-    def close(self):
-        """Close the writer
-        """
-        self.lock.acquire()
-        self.fout.close()
-        self.lock.release()
-
-    def dest(self):
-        """return the destination"""
-        return self.dst
-
-
-#--------------------------------------------------------- Crawling Methods
-def by_user(paras):
-    """Crawling tweets by API status/user_timeline
-    """
-    statuses = twitter_api.iterpage(twitter_api.user_timeline, \
-            user_id=paras[0], \
-            since_id=paras[1], \
-            count=200)
-    logging.info('{0} tweets collected from user {1}'.\
-            format(len(statuses), paras[0]))
-    return {'list': statuses}
-
-def by_geocode(paras):
-    """Crawling tweets by API search?geocode=
-    """
-    statuses = twitter_api.wrapped_search(geocode=paras[0], \
-                        since_id=paras[1], \
-                        rpp=100, \
-                        q='')
-    logging.info('{0} tweets collected from geocode={1}'.\
-            format(len(statuses), paras[0]))
-    return {'list': statuses}
-
-def by_pid(paras):
-    """Crawling tweets by API search?place:
-    """
-    statuses = twitter_api.wrapped_search(q='place:' + paras[0], \
-                        since_id=paras[1], \
-                        rpp=100)
-    logging.info('{0} tweets has been retrieved from place {1}'.\
-            format(len(statuses), paras[0]))
-    return {'list': statuses}
-
-def retrieve_tweet(paras):
-    """Retrieve one tweet from API statuses/{id}
-    """
-    logging.info('TID={0}'.format(paras[0]))
-    status = twitter_api.get_status(id=int(paras[0]))
-    if status:
-        return {'list': (status,)}
-    else:
-        return {'list': list()}
-
-def retrieve_place(paras):
-    """Retrieve one place from API place/{id}
-    """
-    logging.info('PID={0}'.format(paras[0]))
-    place = twitter_api.geo_id(place_id=paras[0])
-    if place:
-        return {'list': (place,)}
-    else:
-        return {'list': list()}
-
-def retrieve_place4sq(paras):
-    """Retrieve one place from 4sq API venue/{id}
-    """
-    logging.info('Place {0}, {1}'.format(paras[1], paras[2]))
-    place = foursq_api.search (ll=paras[2], query=paras[1], limit=1,
-        intend='match')
-    if place:
-        place['t_place_id'] = paras[0]
-        return {'list': (place, )}
-    else:
-        return {'list': list()}
-
-def retrieve_followers_friends(paras):
-    """Retrieve users' followers from follower_ids
-    """
-    logging.info('UserID={0}'.format(paras[0]))
-    followers = twitter_api.followers_ids(user_id = paras[0])
-    friends = twitter_api.friends_ids(user_id = paras[0])
-    if len(followers)>0:
-        return {'list': ({'user_id':paras[0], \
-                'foids': followers, \
-                'frids': friends},)}
-    else: return {'list': list()}
-
-def retrieve_google_search(paras):
-    """Retrieve search results from Google
-    """
-    logging.info('keyword={0}'.format(paras[1]))
-    sres = google_api.websearch(q = paras[1], rsz = 8, v = '1.0')
-            #key='AIzaSyCZyU1PER77rHKYfZXC2sE-N2PzLieRz88')
-    if len(sres) > 0:
-        return {'list': ({'q': paras[0], \
-                'gresults': sres},)}
-    else: return {'list': list()}
-
-def retrieve_bing_search(paras):
-    """Retrieve search results from Google
-    """
-    logging.info('keyword={0}'.format(paras[1]))
-    sres = bing_api.searchrequest(Query = paras[1], Sources='Web',
-            Version='2.0', Market='en-US',
-            AppId='ED4FF446CC9C1BA6BD0F1B013DE8B3A040F6D89E')
-    if len(sres) > 0:
-        return {'list': ({'q': paras[0], \
-                'gresults': sres},)}
-    else: return {'list': list()}
-
-def retrieve_web_page(paras):
-    """Retrieve web pages from url
-    """
-    logging.info('URL: {0}'.format(paras[1]))
-    try:
-        web = api.api_call2(*api.urlsplit(paras[1])).read(). \
-                decode('utf-8', errors='ignore')
-        if len(web) == 0:
-            return {'list': list(),}
-        return {'list': ({'place_id': paras[0], \
-                'web': web},)}
-    except:
-        return {'list': list(),}
-
-def retrieve_url(paras):
-    """Retrieve web pages from url
-    """
-    logging.info('URL: {0}'.format(paras[0]))
-    web = api.api_call2(*api.urlsplit(paras[0])).read(). \
-            decode('utf-8', errors='ignore')
-    web = web.replace('\n', ' ')
-    web = web.replace('\r', ' ')
-    return ' '.join([paras[0], web])
-
-# a list of usable picture service support by this crawling module
-_SERVICEPROVIDERS = {'twitpic.com':pic_service_api.get_twit_pic,
-                    'yfrog.com':pic_service_api.get_yfrog_pic,
-                    'tweetphoto.com': pic_service_api.get_tweetphoto_pic,
-                    'plixi.com': pic_service_api.get_tweetphoto_pic}
-
-def retrieve_pic(paras):
-    """Retrieve picture from online picture service
-    """
-    logging.info('Picture from {0}'.format(paras[0]))
-    urlpart = paras[0].split('/')
-    api_method = _SERVICEPROVIDERS[urlpart[2]]
-    pic = api_method(url=paras[0])
-    return {'pic': pic, 'name': paras[1]}
-
 #---------------------------------------------------------- Main Function
 def crawl(crawl_type, para_file):
     """Main Crawling function
     """
 
-    crl = ()
+    crl = Crawler()
 
     # Set a Writer for the crawler
     if crawl_type == 'picture':
-        crl.set_writer(PicFileWriter('data/pic'))
+        crl.set_writer(writer.PicFileWriter('data/pic'))
     elif crawl_type == 'url':
-        crl.set_writer(LineWriter(\
-                gen_filename('data', crawl_type, 'ljson.gz'), True))
+        crl.set_writer(writer.LineWriter(\
+                writer.new_filename_time('data', crawl_type, 'ljson.gz'), True))
     else:
-        crl.set_writer(JsonList2FileWriter(\
-                gen_filename('data', crawl_type, 'ljson.gz'), True))
+        crl.set_writer(writer.JsonList2FileWriter(\
+                writer.new_filename_time('data', crawl_type, 'ljson.gz'), True))
 
     # Set a method for the crawler
-    method = {'tweet_u': by_user,
-            'tweet_p': by_pid,
-            'tweet': retrieve_tweet,
-            'place': retrieve_place,
-            'tweet_g': by_geocode,
-            'place_4sq': retrieve_place4sq,
-            'picture': retrieve_pic,
-            'followers': retrieve_followers_friends,
-            'websearch_g': retrieve_google_search,
-            'websearch_b': retrieve_bing_search,
-            'web': retrieve_web_page,
-            'url': retrieve_url,
+    method = {'tweet_u': binding.tweet_by_user,
+            'tweet_p': binding.tweet_by_pid,
+            'tweet': binding.tweet_by_id,
+            'place': binding.twitter_place_by_id,
+            'tweet_g': binding.tweet_by_geocode,
+            'place_4sq': binding.fsq_place_by_name,
+            'picture': binding.pic_by_url,
+            'followers': binding.twitter_fol_fri_by_uid,
+            'websearch_g': binding.google_search,
+            'websearch_b': binding.bing_search,
+            'web': binding.webpage_by_url,
+            'url': binding.retrieve_url,
         }
     if crawl_type in method:
         crl.set_method(method[crawl_type])
@@ -485,7 +168,7 @@ def crawl(crawl_type, para_file):
     signal.signal(signal.SIGINT, crl.stop)
 
     # prepare for logging
-    flog = gen_filename('log', crawl_type,'log')
+    flog = writer.gen_filename_time('log', crawl_type,'log')
     logging.basicConfig( \
         filename= flog, \
         level=logging.INFO, \
