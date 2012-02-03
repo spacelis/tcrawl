@@ -5,6 +5,7 @@ Description:
     Utilizing the stream APIs provided by Twitter or some other data provider
     to crawl data.
 History:
+    0.1.1 fix bug imcomplete read; move account information out of code
     0.1.0 The first version.
 """
 __version__ = '0.1.0'
@@ -27,9 +28,6 @@ STREAMAPIS = {'filter': {'host': 'stream.twitter.com',
                         'safe': True,
                         'auth': True}}
 
-USR = # please replace this with the actual username
-PWD = #
-
 class Streamer(object):
     """ Streaming Twitter's API
     """
@@ -40,6 +38,12 @@ class Streamer(object):
         self.api_kargs = kargs
         self.running = True
 
+    def user_account(self, user, pwd):
+        """ Set the user account to be used for streaming
+        """
+        self.user = user
+        self.pwd = pwd
+
     def _get_req_paras(self):
         """ General configuration for stream APIs
         """
@@ -48,7 +52,7 @@ class Streamer(object):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         body = '&'.join(['%s=%s' % (key, val) for key, val in self.api_kargs.iteritems()])
         if STREAMAPIS[self.api_name]['auth']:
-            token = base64.encodestring('%s:%s' % (USR, PWD))[:-1]
+            token = base64.encodestring('%s:%s' % (self.user, self.pwd))[:-1]
             headers['Authorization'] = 'Basic ' + token
         logging.debug('[Request] Method: ' + method)
         logging.debug('[Request] Path: ' + path)
@@ -71,15 +75,19 @@ class Streamer(object):
         """ streaming twitter's api
         """
 
-        httpconn = self._get_conn()
-        httpconn.request(*self._get_req_paras())
-        httpresp = httpconn.getresponse()
-        buf = httpresp.read(1000)
-        while self.running and len(buf) > 0:
-            self.writer.write(buf)
+        try:
+            httpconn = self._get_conn()
+            httpconn.request(*self._get_req_paras())
+            httpresp = httpconn.getresponse()
             buf = httpresp.read(1000)
-            if len(buf) == 0:
-                logging.warn('Connection closed unexpectedly.')
+            while self.running and len(buf) > 0:
+                self.writer.write(buf)
+                buf = httpresp.read(1000)
+                if len(buf) == 0:
+                    logging.warn('Connection closed unexpectedly.')
+        except Exception as e:
+            logging.warn(e)
+
 
         # If the reader reach the end of the streaming, or there is a request of
         # stopping, the streamming process will stop.
@@ -107,3 +115,6 @@ if __name__ == '__main__':
     while s.running:
         s.stream()
     w.close()
+
+
+
