@@ -106,6 +106,7 @@ if __name__ == '__main__':
     logging.info('Version: ' + __version__)
     w = tcrawl.writer.LineBufferedWriter(sys.argv[1], is_compressed=True)
     s = Streamer('filter', w, locations='-127.33,24.68,-76.83,49.22')
+    s.useraccount(sys.argv[2], sys.argv[3])
     logging.info('Parameters: ' + 'locations=-127.33,24.68,-76.83,49.22')
     # register Ctrl-C singal for interrupting
     signal.signal(signal.SIGINT, s.stop)
