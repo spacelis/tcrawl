@@ -106,7 +106,7 @@ class Crawler(object):
         if self.stopped:
             logging.info('Interrupted before retrieving by ' + str(para))
             return
-        paras = para.split('$')
+        paras = para.split('\t')
         try:
             rtn = self.method(paras)
             self.writer.write(rtn)
@@ -139,10 +139,10 @@ def crawl(crawl_type, para_file):
         crl.set_writer(writer.PicFileWriter('data/pic'))
     elif crawl_type == 'url':
         crl.set_writer(writer.LineWriter(\
-                writer.new_filename_time('data', crawl_type, 'ljson.gz'), True))
+                writer.new_filename_time('data', crawl_type, 'ljson.gz'), is_compressed=True))
     else:
         crl.set_writer(writer.JsonList2FileWriter(\
-                writer.new_filename_time('data', crawl_type, 'ljson.gz'), True))
+                writer.new_filename_time('data', crawl_type, 'ljson.gz'), is_compressed=True))
 
     # Set a method for the crawler
     method = {'tweet_u': binding.tweet_by_user,
@@ -168,7 +168,7 @@ def crawl(crawl_type, para_file):
     signal.signal(signal.SIGINT, crl.stop)
 
     # prepare for logging
-    flog = writer.gen_filename_time('log', crawl_type,'log')
+    flog = writer.new_filename_time('log', crawl_type,'log')
     logging.basicConfig( \
         filename= flog, \
         level=logging.INFO, \
@@ -178,7 +178,7 @@ def crawl(crawl_type, para_file):
     logging.getLogger('').addHandler(console)
     logging.info(__version__)
     logging.info('input:{0}'.format(sys.argv[2]))
-    logging.info('output:{0}'.format(crl.get_writer().dest()))
+    logging.info('output:{0}'.format(crl.get_writer().fout.name))
 
 
     # start crawling

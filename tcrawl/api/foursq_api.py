@@ -12,13 +12,15 @@ __author__ = 'SpaceLis'
 import json
 import logging
 import time
-from tcrawl.api import APIError, api_call, buildpath
+from tcrawl.api.api import APIError, api_call, buildpath
+from datetime import datetime
 
 def search(**kargs):
     """Foursquare API"""
     host = 'api.foursquare.com'
     api_path = '/v2/venues/search'
-    kargs['oauth_token'] = '31JU4VJBLV4SOFWMP2W13XIZEZDYIK5E3LH3PJ3TXTQY1HMF'
+    kargs['oauth_token'] = 'DTQX41P5JP1IA5QGNZC0UQ1FTBVNP31I1HE54Y0LDRFTAXGS'
+    kargs['v'] = datetime.today().strftime('%Y%m%d')
     path = buildpath(api_path, kargs)
     while True:
         try:
@@ -38,7 +40,8 @@ def search(**kargs):
 def test():
     """A test
     """
-    print search(ll='44.3,37.2')
+    print json.dumps(search(ll='40.76305,-73.97375', query='Louis Vuitton', intent='match'))
+
 
 if __name__ == '__main__':
     test()

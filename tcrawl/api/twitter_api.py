@@ -14,8 +14,8 @@ __author__ = 'SpaceLis'
 
 import re, logging, time, json
 
-from tcrawl.api import APIError, buildpath, api_call, stream_call, api_call2, sleep
-from text_util import html_filter
+from tcrawl.api.api import APIError, buildpath, api_call, api_call2, sleep
+from utillib.textptn import HTML, delpattern
 
 SINCEID_PATTERN = re.compile('()&since_id=\\d+|(\?)since_id=\\d+&')
 PAGE = re.compile(r'page')
@@ -219,7 +219,7 @@ def htmlstatus2dict(html):
                 pnode[keypath[nidx]] = dict()
             pnode = pnode[keypath[nidx]]
         if keypath[-1] == 'text':
-            content = html_filter(content)
+            content = delpattern(content, HTML)
         pnode[keypath[-1]] = content.encode('utf-8', errors='ignore')
     status['html'] = html.encode('utf-8', errors='ignore')
     return status

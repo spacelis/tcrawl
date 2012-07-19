@@ -10,7 +10,7 @@ __version__ = '0.1.0'
 __author__ = 'SpaceLis'
 
 import sys, traceback, json, time
-from tcrawl.api import api_call2, buildpath, APIError
+from tcrawl.api.api import api_call2, buildpath, APIError
 def searchrequest(**kargs):
     """Bing's search API
     """

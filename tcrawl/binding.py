@@ -9,6 +9,7 @@ History:
 __version__ = '0.1.0'
 __author__ = 'SpaceLis'
 
+import logging
 from tcrawl.api import api
 from tcrawl.api import twitter_api
 from tcrawl.api import foursq_api
@@ -72,7 +73,7 @@ def fsq_place_by_name(paras):
     """Retrieve one place from 4sq API venue/{id}
     """
     logging.info('Place {0}, {1}'.format(paras[1], paras[2]))
-    place = foursq_api.search (ll=paras[2], query=paras[1], limit=1,
+    place = foursq_api.search (ll=paras[1], query=paras[2],
         intend='match')
     if place:
         place['t_place_id'] = paras[0]

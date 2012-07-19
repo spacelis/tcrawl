@@ -105,14 +105,16 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s::%(levelname)s::%(message)s', level=logging.INFO)
     logging.info('Version: ' + __version__)
     w = tcrawl.writer.LineBufferedWriter(sys.argv[1], is_compressed=True)
-    s = Streamer('filter', w, locations='-127.33,24.68,-76.83,49.22')
-    s.useraccount(sys.argv[2], sys.argv[3])
-    logging.info('Parameters: ' + 'locations=-127.33,24.68,-76.83,49.22')
-    # register Ctrl-C singal for interrupting
+    #s = Streamer('filter', w, locations='-127.33,24.68,-76.83,49.22')
+    s = Streamer('filter', w, locations='-74.25909,40.477399,-73.700272,40.917577,-87.940101,41.644582,-87.523661,42.023019,-118.668157,33.704554,-117.753334,34.337306,-122.51368188,37.70813196,-122.35845384,37.83245301')
+    s.user_account(sys.argv[2], sys.argv[3])
+    #logging.info('parameters: ' + 'locations=-127.33,24.68,-76.83,49.22')
+    logging.info('Sampling from 4 cities')
+    # register ctrl-c singal for interrupting
     signal.signal(signal.SIGINT, s.stop)
     signal.signal(signal.SIGTERM, s.stop)
-    # Start streamming
-    logging.info('Streaming started.')
+    # start streamming
+    logging.info('streaming started.')
     while s.running:
         s.stream()
     w.close()

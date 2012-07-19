@@ -9,7 +9,7 @@ History:
 __version__ = '0.1.0'
 __author__ = 'SpaceLis'
 
-from tcrawl.api import APIError, api_call, buildpath
+from tcrawl.api.api import APIError, api_call, buildpath
 import time, random, traceback, sys
 import json
 

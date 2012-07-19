@@ -10,7 +10,7 @@ History:
 __version__ = '0.1.0'
 __author__ = 'SpaceLis'
 
-from tcrawl.api import api_call, urlsplit
+from tcrawl.api.api import api_call, urlsplit
 
 def get_twit_pic(**kargs):
     """Retrieve the picture from TwitPic"""
